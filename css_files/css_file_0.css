@@ -1,0 +1,690 @@
+@charset "UTF-8";
+/*!
+ * ress.css â¢ v1.2.2
+ * MIT License
+ * github.com/filipelinhares/ress
+ */
+html {
+  box-sizing: border-box;
+  overflow-y: scroll;
+  -webkit-text-size-adjust: 100%;
+}
+
+*, :after, :before {
+  background-repeat: no-repeat;
+  box-sizing: inherit;
+}
+
+:after, :before {
+  text-decoration: inherit;
+  vertical-align: inherit;
+}
+
+* {
+  padding: 0;
+  margin: 0;
+}
+
+audio:not([controls]) {
+  display: none;
+  height: 0;
+}
+
+hr {
+  overflow: visible;
+}
+
+article, aside, details, figcaption, figure, footer, header, main, menu, nav, section, summary {
+  display: block;
+}
+
+summary {
+  display: list-item;
+}
+
+small {
+  font-size: 80%;
+}
+
+[hidden], template {
+  display: none;
+}
+
+abbr[title] {
+  border-bottom: 1px dotted;
+  text-decoration: none;
+}
+
+a {
+  background-color: transparent;
+  -webkit-text-decoration-skip: objects;
+}
+
+a:active, a:hover {
+  outline-width: 0;
+}
+
+code, kbd, pre, samp {
+  font-family: monospace, monospace;
+}
+
+b, strong {
+  font-weight: bolder;
+}
+
+dfn {
+  font-style: italic;
+}
+
+mark {
+  background-color: #ff0;
+  color: #000;
+}
+
+sub, sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+sub {
+  bottom: -0.25em;
+}
+
+sup {
+  top: -0.5em;
+}
+
+input {
+  border-radius: 0;
+}
+
+[role=button], [type=button], [type=reset], [type=submit], button {
+  cursor: pointer;
+}
+
+[disabled] {
+  cursor: default;
+}
+
+[type=number] {
+  width: auto;
+}
+
+[type=search] {
+  -webkit-appearance: textfield;
+}
+
+[type=search]::-webkit-search-cancel-button, [type=search]::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+textarea {
+  overflow: auto;
+  resize: vertical;
+}
+
+button, input, optgroup, select, textarea {
+  font: inherit;
+}
+
+optgroup {
+  font-weight: 700;
+}
+
+button {
+  overflow: visible;
+}
+
+[type=button]::-moz-focus-inner, [type=reset]::-moz-focus-inner, [type=submit]::-moz-focus-inner, button::-moz-focus-inner {
+  border-style: 0;
+  padding: 0;
+}
+
+[type=button]::-moz-focus-inner, [type=reset]::-moz-focus-inner, [type=submit]::-moz-focus-inner, button:-moz-focusring {
+  outline: 1px dotted ButtonText;
+}
+
+[type=reset], [type=submit], button, html [type=button] {
+  -webkit-appearance: button;
+}
+
+button, select {
+  text-transform: none;
+}
+
+button, input, select, textarea {
+  background-color: transparent;
+  border-style: none;
+  color: inherit;
+}
+
+select {
+  -moz-appearance: none;
+  -webkit-appearance: none;
+}
+
+select::-ms-expand {
+  display: none;
+}
+
+select::-ms-value {
+  color: currentColor;
+}
+
+legend {
+  border: 0;
+  color: inherit;
+  display: table;
+  max-width: 100%;
+  white-space: normal;
+}
+
+::-webkit-file-upload-button {
+  -webkit-appearance: button;
+  font: inherit;
+}
+
+[type=search] {
+  -webkit-appearance: textfield;
+  outline-offset: -2px;
+}
+
+img {
+  border-style: none;
+}
+
+progress {
+  vertical-align: baseline;
+}
+
+svg:not(:root) {
+  overflow: hidden;
+}
+
+audio, canvas, progress, video {
+  display: inline-block;
+}
+
+@media screen {
+  [hidden~=screen] {
+    display: inherit;
+  }
+  [hidden~=screen]:not(:active):not(:focus):not(:target) {
+    position: absolute !important;
+    clip: rect(0 0 0 0) !important;
+  }
+}
+[aria-busy=true] {
+  cursor: progress;
+}
+
+[aria-controls] {
+  cursor: pointer;
+}
+
+[aria-disabled] {
+  cursor: default;
+}
+
+::-moz-selection {
+  background-color: #b3d4fc;
+  color: #000;
+  text-shadow: none;
+}
+
+::selection {
+  background-color: #b3d4fc;
+  color: #000;
+  text-shadow: none;
+}
+
+[v-cloak] {
+  display: none;
+}
+
+img {
+  vertical-align: top;
+}
+
+li {
+  list-style: none;
+}
+
+a {
+  color: #FFF;
+  text-decoration: none;
+}
+
+.note {
+  /*aaa*/
+  font-size: 0.8125rem;
+}
+
+html {
+  overflow: auto;
+}
+
+body {
+  position: relative;
+  height: 100%;
+  font-family: "ã¡ã¤ãªãª", Meiryo, "ï¼­ï¼³ ï¼°ã´ã·ãã¯", "ãã©ã®ãè§ã´ Pro W3", "Hiragino Kaku Gothic Pro", "Osaka", Arial, Verdana, Helvetica, sans-serif;
+  font-size: 16px;
+  line-height: 20px;
+  color: #eee;
+  -webkit-text-size-adjust: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  background: #000;
+}
+
+body:before {
+  content: "";
+  display: block;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  background: url("/games/castlevania/s/img/mainvisual_sp.jpg") top center/contain no-repeat fixed;
+  z-index: -1;
+}
+
+@media only screen and (min-width: 980px) {
+  body:before {
+    background: url("/games/castlevania/s/img/mainvisual_pc.jpg") top center/cover no-repeat fixed;
+  }
+}
+.wrapper {
+  overflow: hidden;
+  position: relative;
+}
+
+.contents {
+  font-family: "Hiragino Mincho ProN", Georgia, "Yu Mincho", serif;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0.5) 5%);
+}
+
+@media only screen and (min-width: 980px) {
+  .contents {
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 300px, rgba(0, 0, 0, 0.5) 500px);
+  }
+  .contents .contents-in {
+    max-width: 980px;
+    margin: 0 auto;
+  }
+}
+h1 {
+  /*aaa*/
+  font-size: 1.625rem;
+  border-bottom: 1px solid #adadad;
+  vertical-align: bottom;
+}
+h1 span {
+  /*aaa*/
+  font-size: 1.25rem;
+}
+
+@media only screen and (min-width: 980px) {
+  h1 {
+    padding-bottom: 2px;
+    /*aaa*/
+    font-size: 2rem;
+  }
+  h1 span {
+    /*aaa*/
+    font-size: 1.625rem;
+  }
+}
+header .hdr-konami {
+  width: 100%;
+  max-width: 130px;
+  margin: 4px;
+}
+header .region {
+  width: 160px;
+  height: 34px;
+  margin: 5px;
+  float: right;
+  border-bottom: #222 1px solid;
+}
+header .region:hover ul li {
+  overflow: visible;
+  height: 35px;
+}
+header .region p {
+  position: relative;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+header .region p a {
+  display: block;
+  margin: 0;
+  padding: 0 10px;
+  color: #fff;
+  /*aaa*/
+  font-size: 0.75rem;
+  line-height: 34px;
+  height: 34px;
+}
+header .region p:before {
+  content: "â¼";
+  position: absolute;
+  top: 6px;
+  right: 10px;
+}
+header .region ul {
+  position: relative;
+}
+header .region ul li {
+  width: 100%;
+  overflow: hidden;
+  height: 0;
+  transition: 0.2s;
+}
+header .region ul li a {
+  display: block;
+  padding: 0 10px;
+  border-top: 1px solid #000;
+  background: #600602;
+  text-align: left;
+  color: #fff;
+  font-size: 75%;
+  line-height: 34px;
+  width: 100%;
+  box-sizing: border-box;
+}
+header .region ul li a:hover {
+  background-color: #890600;
+}
+header::after {
+  display: block;
+  content: "";
+  clear: both;
+}
+
+.returnTop {
+  position: fixed;
+  bottom: 14px;
+  right: 14px;
+}
+.returnTop a {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 60px;
+  background: rgba(50, 50, 50, 0.8);
+  color: #9c8147;
+  border-radius: 100%;
+  text-align: center;
+  font-size: 75%;
+  line-height: 80px;
+}
+.returnTop a:hover {
+  background: rgba(93, 31, 10, 0.8);
+  transition: 0.8s ease-out;
+}
+.returnTop a:after {
+  content: "";
+  position: absolute;
+  top: 35%;
+  right: 41%;
+  display: block;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-top: 2px solid #9c8147;
+  border-right: 2px solid #9c8147;
+  transform: rotate(-45deg);
+}
+
+footer {
+  text-align: center;
+  background: rgba(0, 0, 0, 0.7);
+  border-top: 1px solid #9c8147;
+}
+footer p {
+  margin: 2%;
+  /*aaa*/
+  font-size: 0.625rem;
+  line-height: 1.5em;
+}
+footer .share {
+  display: flex;
+  justify-content: center;
+}
+footer .share li {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  margin: 0 6px;
+}
+footer .share li a {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 3px;
+  background-size: 100% auto;
+  box-shadow: 0 0 0 0 rgba(85, 85, 85, 0.3);
+  transition: box-shadow 0.2s ease;
+}
+footer .share li a:hover {
+  box-shadow: 0 0 2px 2px rgba(85, 85, 85, 0.3);
+}
+footer .share li.tw a {
+  background-image: url("/games/castlevania/s/img/icn_x_w.png");
+}
+footer .share li.fb a {
+  background-image: url("/games/castlevania/s/img/sns_icon_facebook.svg");
+}
+@media screen and (min-width: 980px) {
+  footer .share li.line {
+    display: none;
+  }
+}
+footer .share li.line a {
+  background-image: url("/games/castlevania/s/img/sns_icon_line.svg");
+}
+footer .share li.ggl a {
+  background-image: url("/games/castlevania/s/img/sns_icon_google_plus.svg");
+}
+footer .footer-link {
+  padding-top: 20px;
+}
+footer .footer-link li {
+  display: inline-block;
+  /*aaa*/
+  font-size: 0.625rem;
+}
+footer .footer-link li:not(:last-child) {
+  border-right: 1px solid #fff;
+  padding-right: 10px;
+}
+footer .footer-link li a #ot-sdk-btn.ot-sdk-show-settings, footer .footer-link li a #ot-sdk-btn.optanon-show-settings {
+  padding: 0;
+  color: #eee;
+  /*aaa*/
+  font-size: 0.75rem;
+  border: none;
+  background: transparent;
+}
+
+@media only screen and (min-width: 980px) {
+  footer p {
+    /*aaa*/
+    font-size: 0.75rem;
+  }
+  footer .footer-link li {
+    /*aaa*/
+    font-size: 0.75rem;
+  }
+}
+.main-logo {
+  width: 70%;
+  margin: 34% 0 6% 0;
+}
+.main-logo img {
+  max-width: 100%;
+}
+
+@media only screen and (min-width: 980px) {
+  .main-logo {
+    width: 90%;
+    margin: 6% 0;
+  }
+}
+nav {
+  margin: 0 5px;
+}
+nav ul {
+  display: flex;
+  flex-wrap: wrap;
+}
+nav ul li {
+  margin: 0 8px 8px 0;
+  /*aaa*/
+  font-size: 0.9375rem;
+}
+nav ul li a {
+  display: block;
+  padding: 10px;
+  color: #ccc;
+  border: 1px solid #ccc;
+  background: rgba(0, 0, 0, 0.5);
+  transition: color 0.5s ease-out;
+}
+nav ul li a:hover {
+  color: #890600;
+  border: 1px solid #890600;
+  background: rgba(0, 0, 0, 0.8);
+}
+nav ul li.current a {
+  background: rgba(137, 6, 0, 0.5);
+  border: 1px solid #890600;
+  text-shadow: 0 0 10px #c10800;
+}
+nav ul li.current a:hover {
+  color: #ccc;
+  border: 1px solid #890600;
+}
+nav ul li:last-child {
+  margin-right: 0;
+}
+
+@media only screen and (min-width: 980px) {
+  nav {
+    margin: 0 10px;
+  }
+  nav ul li {
+    margin: 0 5px 0 0;
+    /*aaa*/
+    font-size: 1.25rem;
+  }
+  nav ul li a {
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.2);
+  }
+}
+.info {
+  padding: 10% 2% 20%;
+}
+.info ul li {
+  position: relative;
+}
+.info ul li img {
+  max-width: 100%;
+  margin-top: 30px;
+}
+.info ul li .youtube_outer {
+  position: relative;
+  padding-bottom: 56.25%; /*ã¢ã¹ãã¯ãæ¯ 16:9ã®å ´åã®ç¸¦å¹*/
+  height: 0;
+  overflow: hidden;
+  margin-top: 30px;
+}
+.info ul li .youtube_outer iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+.info ul li dl dt {
+  color: #bdb1a0;
+  /*aaa*/
+  font-size: 1.0625rem;
+}
+.info ul li dl dt .info-date {
+  color: #9c8147;
+  /*aaa*/
+  font-size: 0.875rem;
+}
+.info ul li dl dt .info-new {
+  color: #f99090;
+  margin-right: 10px;
+  /*aaa*/
+  font-size: 0.75rem;
+}
+.info ul li dl dd {
+  margin: 10px 0;
+  /*aaa*/
+  font-size: 0.8125rem;
+}
+.info ul li dl dd.info-link a {
+  position: relative;
+  padding-right: 20px;
+  transition: color 0.5s ease-out;
+}
+.info ul li dl dd.info-link a:after {
+  position: absolute;
+  content: "";
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-top: 1px solid #fff;
+  border-right: 1px solid #fff;
+  -webkit-transform: rotate(45deg);
+  transform: rotate(45deg);
+}
+.info ul li dl dd.info-link a:hover {
+  color: #890600;
+}
+.info ul li dl dd.info-link a:hover:after {
+  border-top: 1px solid #890600;
+  border-right: 1px solid #890600;
+}
+
+@media only screen and (min-width: 980px) {
+  .info {
+    padding: 60px 10px;
+  }
+  .info ul {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .info ul li {
+    width: 31%;
+    margin-right: 2%;
+  }
+  .info ul li:last-child {
+    margin-right: 0;
+  }
+  .info ul li dl {
+    margin: 10px 0 0 0;
+  }
+  .info ul li dl dt {
+    /*aaa*/
+    font-size: 1rem;
+  }
+  .info ul li dl dd {
+    margin: 10px 0 15px;
+    /*aaa*/
+    font-size: 0.75rem;
+  }
+  .info ul li dl dd.info-link {
+    bottom: -25px;
+  }
+}
+
+/*# sourceMappingURL=index.css.map */
