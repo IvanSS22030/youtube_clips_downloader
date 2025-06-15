@@ -117,6 +117,6 @@ def download_css(url):
 
 if __name__ == "__main__":
     # Test URL
-    url = "https://www.konami.com/games/castlevania/eu/en/"
+    url = ""
     print(f"Starting CSS extraction from: {url}")
-    download_css(url)
+    download_css("https://www.muhammadaamirmalik.com/")

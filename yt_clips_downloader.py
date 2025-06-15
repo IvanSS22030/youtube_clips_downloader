@@ -29,14 +29,35 @@ def parse_clip_url(url):
     Returns:
         tuple: (start_time, end_time) in seconds
     """
-    parsed_url = urlparse(url)
-    query_params = parse_qs(parsed_url.query)
+    try:
+        # First try to get clip information using yt-dlp
+        ydl_opts = {
+            'quiet': True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            if 'chapters' in info:
+                # For newer clip format, the clip is actually a chapter
+                for chapter in info['chapters']:
+                    if chapter.get('is_clip'):
+                        return chapter['start_time'], chapter['end_time']
 
-    # Extract clip start and end times
-    start_time = int(query_params.get('start', [0])[0])
-    end_time = int(query_params.get('end', [0])[0])
+            # If we have specific clip information
+            if info.get('clip_start_time') is not None and info.get('clip_end_time') is not None:
+                return info['clip_start_time'], info['clip_end_time']
 
-    return start_time, end_time
+    except Exception:
+        # Fallback to URL parsing for older clip format
+        parsed_url = urlparse(url)
+        query_params = parse_qs(parsed_url.query)
+
+        if 'start' in query_params and 'end' in query_params:
+            start_time = int(query_params.get('start', [0])[0])
+            end_time = int(query_params.get('end', [0])[0])
+            return start_time, end_time
+
+    # If we can't find timing information, download the whole video
+    return 0, None
 
 
 def download_clip(url, output_dir="downloads"):
@@ -52,21 +73,24 @@ def download_clip(url, output_dir="downloads"):
 
     try:
         # Extract clip timing
-        start_time, end_time = parse_clip_url(url)
-
-        # Configure yt-dlp options
+        start_time, end_time = parse_clip_url(
+            url)        # Configure yt-dlp options
+        from datetime import datetime
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         ydl_opts = {
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]',
-            'outtmpl': os.path.join(output_dir, '%(title)s - Clip.%(ext)s'),
-            'download_ranges': lambda info: [[start_time, end_time]],
-            'force_keyframes_at_cuts': True,
-            'postprocessors': [{
-                'key': 'FFmpegVideoRemuxer',
-                'preferedformat': 'mp4',
-            }],
+            'format': 'best[ext=mp4]/best',  # Simplified format selection
+            'outtmpl': os.path.join(output_dir, f'%(title)s - Clip_{timestamp}.%(ext)s'),
             'quiet': False,
             'progress': True,
+            'force_overwrites': True  # This will force download even if file exists
         }
+
+        # Only add download range if we have both start and end times
+        if end_time is not None:
+            ydl_opts.update({
+                'download_ranges': lambda _info, _er: [[start_time, end_time]],
+                'force_keyframes_at_cuts': True,
+            })
 
         # Download the clip
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:

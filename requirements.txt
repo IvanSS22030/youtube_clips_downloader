@@ -3,3 +3,6 @@ requests>=2.31.0
 yt-dlp>=2025.4.30
 urllib3>=2.0.0
 lxml>=4.9.0  # Better HTML parsing performance for BeautifulSoup
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.5.0
