@@ -20,6 +20,9 @@ from urllib.parse import urljoin, urlparse
 import json
 from datetime import datetime
 import time
+import concurrent.futures
+import shutil
+import threading
 
 try:
     import undetected_chromedriver as uc
@@ -36,6 +39,238 @@ try:
     SELENIUM_AVAILABLE = True
 except ImportError:
     SELENIUM_AVAILABLE = False
+
+
+class ThreadedDownloader:
+    def __init__(self, max_workers=4):
+        self.max_workers = max_workers
+        
+        # Shared session for connection pooling
+        self.session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(pool_connections=max_workers, pool_maxsize=max_workers)
+        self.session.mount('http://', adapter)
+        self.session.mount('https://', adapter)
+
+    def download_file(self, url, output_path, headers=None):
+        """Download file using multiple threads"""
+        if headers is None:
+            headers = {}
+        
+        # Update session headers
+        self.session.headers.update(headers)
+            
+        # Get file size and resolve final URL
+        try:
+            # We use a GET with stream=True to reliably get the final URL and size
+            with self.session.get(url, stream=True, timeout=15) as resp:
+                final_url = resp.url
+                file_size = int(resp.headers.get('content-length', 0))
+                
+            if url != final_url:
+                print(f"  Resolved redirect: {url[:30]}... -> {final_url[:30]}...")
+                url = final_url
+                
+        except Exception as e:
+            print(f"  Error probing file: {e}")
+            file_size = 0
+
+        if file_size == 0:
+            # Fallback to single thread if size unknown
+            print("  File size unknown or connection issue, using single connection...")
+            self._download_single(url, output_path, headers)
+            return
+
+        print(f"  Accelerating download with {self.max_workers} threads... (Size: {file_size/(1024*1024):.1f} MB)")
+        
+        # Calculate chunks
+        chunk_size = file_size // self.max_workers
+        ranges = []
+        for i in range(self.max_workers):
+            start = i * chunk_size
+            end = start + chunk_size - 1 if i < self.max_workers - 1 else file_size - 1
+            ranges.append((start, end, i))
+
+        # Shared progress state
+        self.total_bytes = file_size
+        self.downloaded_bytes = 0
+        self.progress_lock = threading.Lock()
+        self.shutdown_flag = False
+        
+        # Temp file paths
+        part_files = [f"{output_path}.part{i}" for i in range(self.max_workers)]
+
+        # Start Monitor Thread
+        monitor_thread = threading.Thread(target=self._monitor_progress)
+        monitor_thread.daemon = True
+        monitor_thread.start()
+
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                futures = []
+                for i, (start, end, idx) in enumerate(ranges):
+                    # Stagger start to avoid firewall spike
+                    time.sleep(0.2) 
+                    futures.append(executor.submit(self._download_chunk_to_file, url, start, end, idx, headers, part_files[idx]))
+                
+                # Wait for all to complete
+                concurrent.futures.wait(futures)
+                
+                # Check for exceptions
+                for f in futures:
+                    if f.exception():
+                        raise f.exception()
+
+            self.shutdown_flag = True
+            
+            print("\n  Merging file chunks...")
+            with open(output_path, 'wb') as outfile:
+                for pf in part_files:
+                    with open(pf, 'rb') as infile:
+                        shutil.copyfileobj(infile, outfile)
+                    try:
+                        os.remove(pf)
+                    except:
+                        pass
+            
+            print(f"✓ Download completed: {os.path.basename(output_path)}")
+
+        except Exception as e:
+            # Don't set shutdown_flag yet, we want to keep monitoring progress if we resume
+            print(f"\n  [!] Turbo Mode interrupted ({str(e)}).")
+            print("  Cooling down for 5 seconds before Serial Recovery (Resuming)...")
+            time.sleep(5)
+            self._recover_and_finish(url, output_path, headers, ranges, part_files)
+
+    def _recover_and_finish(self, url, output_path, headers, ranges, part_files):
+        """Recover missing chunks serially"""
+        try:
+            for i, (start, end, idx) in enumerate(ranges):
+                part_path = part_files[idx]
+                expected_size = end - start + 1
+                
+                # Check if chunk is already valid
+                if os.path.exists(part_path):
+                    if os.path.getsize(part_path) == expected_size:
+                        continue # Skip valid chunk
+                    else:
+                        # Incomplete, correct downloaded_bytes count to remove partial
+                        with self.progress_lock:
+                            self.downloaded_bytes -= os.path.getsize(part_path)
+
+                # Download missing chunk serially
+                print(f"\r  [Recovery] Resuming chunk {idx+1}/{self.max_workers}...", end="", flush=True)
+                self._download_chunk_to_file(url, start, end, idx, headers, part_path)
+            
+            self.shutdown_flag = True
+            print("\n  Merging file chunks...")
+            with open(output_path, 'wb') as outfile:
+                for pf in part_files:
+                    with open(pf, 'rb') as infile:
+                        shutil.copyfileobj(infile, outfile)
+                    try:
+                        os.remove(pf)
+                    except:
+                        pass
+            
+            print(f"✓ Download completed: {os.path.basename(output_path)}")
+
+        except Exception as e:
+            print(f"\n✗ Recovery failed: {e}")
+
+    def _monitor_progress(self):
+        """Print progress bar periodically"""
+        start_time = time.time()
+        while not self.shutdown_flag and self.downloaded_bytes < self.total_bytes:
+            time.sleep(0.5)
+            with self.progress_lock:
+                current = self.downloaded_bytes
+            
+            if self.total_bytes > 0:
+                percent = (current / self.total_bytes) * 100
+                elapsed = time.time() - start_time
+                speed_bytes = current / elapsed if elapsed > 0 else 0
+                speed_mb = speed_bytes / (1024*1024)
+                
+                # Calculate ETA
+                remaining = self.total_bytes - current
+                eta_seconds = remaining / speed_bytes if speed_bytes > 0 else 0
+                eta_str = time.strftime("%M:%S", time.gmtime(eta_seconds))
+                if eta_seconds > 3600:
+                    eta_str = time.strftime("%H:%M:%S", time.gmtime(eta_seconds))
+                
+                downloaded_mb = current / (1024*1024)
+                total_mb = self.total_bytes / (1024*1024)
+                
+                print(f"\r  [Turbo] {percent:.1f}% of {total_mb:.1f}MB | {speed_mb:.2f} MB/s | ETA: {eta_str}   ", end="", flush=True)
+
+    def _download_chunk_to_file(self, url, start, end, idx, headers, part_path):
+        headers = headers.copy()
+        headers['Range'] = f'bytes={start}-{end}'
+        
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                # Use session
+                with self.session.get(url, headers=headers, verify=False, stream=True, timeout=30) as resp:
+                    resp.raise_for_status()
+                    with open(part_path, 'wb') as f:
+                        for chunk in resp.iter_content(chunk_size=65536): # 64KB chunks
+                            if chunk:
+                                f.write(chunk)
+                                with self.progress_lock:
+                                    self.downloaded_bytes += len(chunk)
+                return
+            except Exception as e:
+                # print(f"DEBUG: Chunk {idx} retry {attempt}")
+                if attempt < max_retries - 1:
+                    time.sleep(2 * (attempt + 1)) # Backoff
+                    # Rewind progress for failed chunk? 
+                    # Complex to rollback perfectly, but re-downloading overwrites file, 
+                    # so we just need to handle the display count. 
+                    # For simplicity, we accept the display might jiggle slightly on retry.
+                    continue
+                raise e
+
+    def _download_single(self, url, output_path, headers, total_size=0):
+        try:
+            # Check if session exists/updates
+            s = getattr(self, 'session', requests)
+            
+            resp = s.get(url, headers=headers, verify=False, stream=True, timeout=30)
+            resp.raise_for_status()
+            
+            if total_size == 0:
+                total_size = int(resp.headers.get('content-length', 0))
+
+            downloaded = 0
+            start_time = time.time()
+            chunk_size = 65536 # 64KB chunks for rapid progress updates
+
+            with open(output_path, 'wb') as f:
+                for chunk in resp.iter_content(chunk_size=chunk_size):
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        
+                        if total_size > 0:
+                            percent = (downloaded / total_size) * 100
+                            elapsed = time.time() - start_time
+                            speed_bytes = downloaded / elapsed if elapsed > 0 else 0
+                            speed_mb = speed_bytes / (1024*1024)
+                            
+                             # Calculate ETA
+                            remaining = total_size - downloaded
+                            eta_seconds = remaining / speed_bytes if speed_bytes > 0 else 0
+                            eta_str = time.strftime("%M:%S", time.gmtime(eta_seconds))
+                            if eta_seconds > 3600:
+                                eta_str = time.strftime("%H:%M:%S", time.gmtime(eta_seconds))
+
+                            print(f"\r  [Safe Mode] {percent:.1f}% | {speed_mb:.2f} MB/s | ETA: {eta_str}   ", end="", flush=True)
+            
+            print(f"\n✓ Download completed: {os.path.basename(output_path)}")
+
+        except Exception as e:
+            print(f"\n✗ Download failed: {e}")
 
 
 class VideoDownloader:
@@ -99,7 +334,7 @@ class VideoDownloader:
             return None
 
         # Retry loop to handle session poisoning/redirects
-        max_retries = 3
+        max_retries = 5
         for attempt in range(max_retries):
             print(f"Starting browser automation for: {url} (Attempt {attempt+1}/{max_retries})")
             
@@ -139,33 +374,46 @@ class VideoDownloader:
                 
                 # Enable Network domain for CDP
                 driver.execute_cdp_cmd('Network.enable', {})
-                # Block known Redirect/Ad domains
                 driver.execute_cdp_cmd('Network.setBlockedURLs', {
                     "urls": [
-                        "*go.msdirectsa.com*", 
-                        "*koviral.xyz*", 
+                        "*go.msdirectsa*", 
+                        "*koviral*", 
                         "*doubleclick.net*", 
-                        "*adservice.google.com*",
-                        "*histats.com*",
-                        "*popads.net*",
-                        "*msdirectsa.com*", 
+                        "*adservice.google*",
+                        "*histats*",
+                        "*popads*",
+                        "*msdirectsa*", 
                         "*.xyz",
                         "*clickid*"
                     ]
                 })
 
-                driver.get(url)
+                # Active Fight-Back Loop: Aggressively reload if redirected
+                # We try up to 8 times to land on the correct URL.
+                for nav_attempt in range(8):
+                    driver.get(url)
+                    
+                    # Short wait to check for immediate redirects
+                    time.sleep(4)
+                    
+                    if "cuevana" in driver.current_url:
+                        # We are on the right site!
+                        break
+                    
+                    print(f"Redirect detected ({driver.current_url}). Clearing cookies and forcing reload ({nav_attempt+1}/8)...")
+                    try:
+                        driver.delete_all_cookies()
+                    except:
+                        pass
                 
-                # Smart wait for any interactive elements or iframes
-                # If using UC, give it a moment for Cloudflare/Redirects to settle
+                # Smart wait for any interactive elements
                 if UC_AVAILABLE:
-                    time.sleep(5)
+                    time.sleep(3)
                     
                 wait = WebDriverWait(driver, 15)
                 
-                # Anti-Redirect / Malware check
-                # Wait a bit to see if a redirect happens
-                time.sleep(5)
+                # Anti-Redirect / Malware check (Final Confirmation)
+                time.sleep(2)
                 if "cuevana" not in driver.current_url:
                     print(f"Malware redirect detected ({driver.current_url}). Terminating poisoned session...")
                     driver.quit()
@@ -307,6 +555,12 @@ class VideoDownloader:
                 ydl_opts = {
                     'quiet': True,
                     'no_warnings': True,
+                    'nocheckcertificate': True,
+                    'ignoreerrors': True,
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                        'Referer': url
+                    }
                 }
 
                 for v_url in final_video_urls:
@@ -341,7 +595,8 @@ class VideoDownloader:
                                 'fps': 0,
                                 'resolution': 'Unknown',
                                 'format_note': 'Direct Link',
-                                'protocol': 'https'
+                                'protocol': 'https',
+                                'url': v_url 
                             }]
                         }
                         all_videos.append(manual_entry)
@@ -350,6 +605,9 @@ class VideoDownloader:
                     print("No supported videos found from the extracted frames.")
                     return None
                 
+                # Enrich metadata (probe for file sizes if missing)
+                all_videos = self._enrich_metadata(all_videos)
+
                 return all_videos
 
             except Exception as e:
@@ -387,7 +645,8 @@ class VideoDownloader:
                         'fps': fmt.get('fps'),
                         'resolution': f"{fmt.get('width', '?')}x{fmt.get('height', '?')}" if fmt.get('width') else None,
                         'format_note': fmt.get('format_note', ''),
-                        'protocol': fmt.get('protocol', 'unknown')
+                        'protocol': fmt.get('protocol', 'unknown'),
+                        'url': fmt.get('url', info.get('url', ''))
                     }
                     video_data['formats'].append(format_info)
 
@@ -399,6 +658,35 @@ class VideoDownloader:
         ), reverse=True)
 
         return video_data
+
+    def _enrich_metadata(self, videos):
+        """Manually probe video URLs for size if missing"""
+        print("Verifying video file sizes...")
+        for video in videos:
+            if not video.get('formats'):
+                continue
+                
+            for fmt in video['formats']:
+                # If size is 0 or None, try to fetch it
+                if not fmt.get('filesize'):
+                    try:
+                        url = video['url']
+                        # headers to match selenium/ydl
+                        headers = {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                            'Referer': 'https://play.cuevana3cc.me/' 
+                        }
+                        # Fast HEAD request
+                        resp = requests.head(url, headers=headers, verify=False, allow_redirects=True, timeout=5)
+                        
+                        cl = resp.headers.get('Content-Length')
+                        if cl:
+                            size_bytes = int(cl)
+                            fmt['filesize'] = size_bytes
+                            print(f"  [Probe] Found size for {fmt['ext']}: {self.format_size(size_bytes)}")
+                    except:
+                        pass
+        return videos
 
     def _get_quality_description(self, fmt):
         """Generate quality description for format"""
@@ -490,9 +778,17 @@ class VideoDownloader:
                 'outtmpl': os.path.join(self.output_dir, f'%(title)s_{timestamp}.%(ext)s'),
                 'quiet': False,
                 'progress': True,
+                'concurrent_fragment_downloads': 10,
+                'nocheckcertificate': True,
+                'ignoreerrors': True,
+                'http_headers': {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                    'Referer': 'https://play.cuevana3cc.me/'
+                }
             }
 
             # If specific format chosen
+            chosen_format = None
             if format_choice and format_choice <= len(video['formats']):
                 chosen_format = video['formats'][format_choice - 1]
                 ydl_opts['format'] = chosen_format['format_id']
@@ -503,10 +799,49 @@ class VideoDownloader:
                 ydl_opts['format'] = 'best'
                 print("Downloading in best available quality")
 
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                print(f"Downloading: {video['title']}")
-                ydl.download([video['url']])
-                print(f"✓ Download completed: {video['title']}")
+            # Check for Manual/Direct download optimization
+            use_turbo = False
+            
+            # Logic: If manual, or if protocol is http/https (direct file), use Turbo.
+            # Ensure we don't break HLS (protocol=m3u8...)
+            target_fmt = chosen_format if chosen_format else (video['formats'][0] if video['formats'] else None)
+            
+            if target_fmt:
+                proto = target_fmt.get('protocol', '').lower()
+                fid = target_fmt.get('format_id', '')
+                
+                if fid == 'manual':
+                    use_turbo = True
+                elif proto in ['http', 'https', 'https:', 'http:']:
+                    # Double check it is not dash/hls
+                    if 'm3u8' not in target_fmt.get('ext', '') and 'dash' not in target_fmt.get('ext', ''):
+                        use_turbo = True
+
+            if use_turbo:
+                print(f"Downloading with Turbo Accelerator (8 threads): {video['title']}")
+                
+                # Setup custom headers
+                headers = ydl_opts['http_headers']
+                
+                # Determine title
+                safe_title = "".join([c for c in video['title'] if c.isalpha() or c.isdigit() or c in (' ', '-', '_')]).rstrip()
+                if not safe_title: safe_title = f"video_{timestamp}"
+                filename = f"{safe_title}.mp4"
+                output_path = os.path.join(self.output_dir, filename)
+                
+                # Use target format URL if available, otherwise fallback to video url
+                download_url = target_fmt.get('url') if target_fmt and target_fmt.get('url') else video['url']
+
+                # Use Threaded Downloader (4 workers is the stable sweet spot)
+                downloader = ThreadedDownloader(max_workers=4)
+                downloader.download_file(download_url, output_path, headers=headers)
+                    
+            else:
+                # Use Standard yt-dlp
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    print(f"Downloading: {video['title']}")
+                    ydl.download([video['url']])
+                    print(f"✓ Download completed: {video['title']}")
 
         except Exception as e:
             print(f"✗ Error downloading {video['title']}: {str(e)}")
@@ -579,6 +914,18 @@ def main():
 
     while True:
         url = input("\nEnter video URL (or 'q' to quit): ").strip()
+
+        # Sanitize Double-Paste (User accidental input: https://...https://...)
+        if "http" in url and url.lower().count("http") > 1:
+            print("\n[!] Warning: Detected multiple URLs pasted together.")
+            # Keep the first valid http/https block
+            split_url = url.split("http") 
+            # split_url[0] is empty or garbage, [1] is first url part, [2] is second...
+            # We reconstruct the first one 'http' + split_url[1]
+            # Handle possible 's' (https)
+            clean_url = "http" + split_url[1]
+            print(f"    Auto-correcting to: {clean_url}")
+            url = clean_url
 
         if url.lower() == 'q':
             break
